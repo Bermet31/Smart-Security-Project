@@ -103,7 +103,25 @@ df["suspicious_overall"] = (
 
 # ----- Summary section -----
 st.subheader("Dataset Preview")
-st.dataframe(df.head(100))
+# st.dataframe(df.head(100))
+
+# ---------------- clean final display table ----------------
+columns_to_show = [
+    "student_id",
+    "login_attempts",
+    "ip_address",
+    "login_success",
+    "last_login_time",
+    "threshold_flag",
+    "anomaly_iforest",
+    "anomaly_kmeans",
+    "suspicious_overall"
+]
+
+columns_existing = [c for c in columns_to_show if c in df.columns]
+df_display = df[columns_existing].copy()
+
+st.dataframe(df_display.head(100))
 
 st.subheader("Summary")
 col1, col2, col3, col4 = st.columns(4)
