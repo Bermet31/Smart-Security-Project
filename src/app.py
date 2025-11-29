@@ -18,7 +18,7 @@ def load_data(path):
     return df
 
 try:
-    raw_df = load_data("cleaned_logins.csv")
+    raw_df = load_data("data/cleaned_logins.csv")
 except FileNotFoundError:
     st.error("cleaned_logins.csv missing.")
     st.stop()
