@@ -6,14 +6,84 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import LabelEncoder
 import matplotlib.pyplot as plt
 
+import bcrypt
+import streamlit as st
+import pandas as pd
+
+def check_password(password, hashed):
+    return bcrypt.checkpw(password.encode(), hashed.encode())
+
+
 # -----------------------------------------------------------
-#   Load CSS (external)
+# Load CSS
 # -----------------------------------------------------------
 def load_css(file_name):
     with open(file_name) as f:
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 load_css("src/styles/nau_style.css")
+
+# Load users database
+users_df = pd.read_csv("src/users.csv")
+
+
+# -----------------------------------------------------------
+# Authentication State
+# -----------------------------------------------------------
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+if "username" not in st.session_state:
+    st.session_state.username = None
+if "full_name" not in st.session_state:
+    st.session_state.full_name = None
+
+
+# -----------------------------------------------------------
+# Show login screen if NOT logged in
+# -----------------------------------------------------------
+if not st.session_state.logged_in:
+    st.header("Login Required")
+
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    login_btn = st.button("Login")
+
+    if login_btn:
+        if username in users_df["username"].values:
+            stored_hash = users_df.loc[
+                users_df["username"] == username, "password_hash"
+            ].values[0]
+            full_name = users_df.loc[
+                users_df["username"] == username, "full_name"
+            ].values[0]
+
+            if check_password(password, stored_hash):
+                st.session_state.logged_in = True
+                st.session_state.username = username
+                st.session_state.full_name = full_name
+
+                st.success("✔ Login successful")
+                st.rerun()
+            else:
+                st.error("❌ Incorrect password")
+        else:
+            st.error("❌ User does not exist")
+
+    st.stop()
+
+
+# -----------------------------------------------------------
+# Sidebar — show user & logout
+# -----------------------------------------------------------
+st.sidebar.markdown(f"👤 {st.session_state.full_name}")
+logout_btn = st.sidebar.button("Logout")
+
+if logout_btn:
+    st.session_state.logged_in = False
+    st.session_state.username = None
+    st.session_state.full_name = None
+    st.success("✔ Logged out")
+    st.rerun()
 
 # -----------------------------------------------------------
 #   Streamlit Config
@@ -49,6 +119,7 @@ page = st.sidebar.selectbox(
 )
 
 st.sidebar.markdown("---")
+
 
 # -----------------------------------------------------------
 #   Load CSV
@@ -205,10 +276,25 @@ df_display = filtered_df[columns_existing].copy()
 #   UI Sections
 # -----------------------------------------------------------
 
+# -----------------------------------------------------------
+# Color formatting for login_success column
+# -----------------------------------------------------------
+def color_login_status(val):
+    if val == "success":
+        return "color: green; font-weight: bold;"
+    elif val == "failed":
+        return "color: red; font-weight: bold;"
+    else:
+        return ""
+
+
 # OVERVIEW
 if page == "Overview":
     st.subheader("Dataset Preview")
-    st.dataframe(df_display.head(100))
+    st.dataframe(
+    df_display.style.applymap(color_login_status, subset=["login_success"])
+)
+
 
     st.subheader("Summary (Filtered)")
     col1, col2, col3, col4, col5 = st.columns(5)
@@ -246,7 +332,10 @@ elif page == "Suspicious Logins":
     if susp.empty:
         st.info("No suspicious login activity detected.")
     else:
-        st.dataframe(susp.head(300))
+        st.dataframe(
+    susp.style.applymap(color_login_status, subset=["login_success"])
+)
+
 
         if "ip_address" in susp.columns:
             st.subheader("Top Suspicious IP Addresses")
